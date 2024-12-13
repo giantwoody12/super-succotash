@@ -1,0 +1,42 @@
+// FoundryVTT Script: Incremental DC Roll Table
+
+// Set initial parameters
+if (!game.settings.get("world", "rollTableDC")) {
+    await game.settings.register("world", "rollTableDC", {
+        name: "Roll Table DC",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 1,
+    });
+}
+
+// Function to handle the roll table logic
+async function handleRollTableDC() {
+    let currentDC = game.settings.get("world", "rollTableDC");
+    let roll = new Roll("1d20").roll({async: false});
+    roll.toMessage({ flavor: `Rolling against DC ${currentDC}` });
+
+    if (roll.total <= currentDC) {
+        // Reset DC to 1 if the roll is equal to or less than the DC
+        ui.notifications.info(`Rolled ${roll.total} <= DC ${currentDC}! DC resets to 1.`);
+        await game.settings.set("world", "rollTableDC", 1);
+    } else {
+        // Increment DC or keep it at 10
+        if (currentDC < 10) {
+            currentDC++;
+            ui.notifications.info(`Failed! DC increases to ${currentDC}.`);
+        } else {
+            ui.notifications.info("DC stays at 10 until a roll is 10 or lower.");
+        }
+        await game.settings.set("world", "rollTableDC", currentDC);
+    }
+}
+
+// Hook into spell casting by a specific character
+Hooks.on("preUseItem", async (item, options, userId) => {
+    // Check if the item is a spell and cast by a specific character
+    if (item.type === "spell" && item.actor.name === "NippieNop") {
+        await handleRollTableDC();
+    }
+});
